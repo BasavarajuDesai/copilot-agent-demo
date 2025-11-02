@@ -5,53 +5,48 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
 
-    private final List<User> users = new ArrayList<>();
+    private final ConcurrentHashMap<Long, User> users = new ConcurrentHashMap<>();
     private final AtomicLong counter = new AtomicLong();
 
     public UserController() {
         // Initialize with some sample data
-        users.add(new User(counter.incrementAndGet(), "John Doe", "john@example.com"));
-        users.add(new User(counter.incrementAndGet(), "Jane Smith", "jane@example.com"));
+        User user1 = new User(counter.incrementAndGet(), "John Doe", "john@example.com");
+        User user2 = new User(counter.incrementAndGet(), "Jane Smith", "jane@example.com");
+        users.put(user1.getId(), user1);
+        users.put(user2.getId(), user2);
     }
 
     @GetMapping
     public ResponseEntity<List<User>> getAllUsers() {
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(List.copyOf(users.values()));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        Optional<User> user = users.stream()
-                .filter(u -> u.getId().equals(id))
-                .findFirst();
-        return user.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        User user = users.get(id);
+        return user != null ? ResponseEntity.ok(user) : ResponseEntity.notFound().build();
     }
 
     @PostMapping
     public ResponseEntity<User> createUser(@RequestBody User user) {
         user.setId(counter.incrementAndGet());
-        users.add(user);
+        users.put(user.getId(), user);
         return ResponseEntity.status(HttpStatus.CREATED).body(user);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
-        Optional<User> userOptional = users.stream()
-                .filter(u -> u.getId().equals(id))
-                .findFirst();
-
-        if (userOptional.isPresent()) {
-            User user = userOptional.get();
+        User user = users.get(id);
+        if (user != null) {
             user.setName(updatedUser.getName());
             user.setEmail(updatedUser.getEmail());
             return ResponseEntity.ok(user);
@@ -61,10 +56,7 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        boolean removed = users.removeIf(u -> u.getId().equals(id));
-        if (removed) {
-            return ResponseEntity.noContent().build();
-        }
-        return ResponseEntity.notFound().build();
+        User removed = users.remove(id);
+        return removed != null ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 }
