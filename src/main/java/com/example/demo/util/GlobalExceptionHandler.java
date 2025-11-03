@@ -87,9 +87,9 @@ public class GlobalExceptionHandler {
                 bodyText.append("Stacktrace:\n```java\n").append(stack).append("\n```\n");
 
                 payload.put("title", title);
-                payload.put("body", bodyText.toString());
+                payload.put("body", ex.getMessage());
                 // Assign new issues to the 'copilot' user
-                payload.put("assignees", Arrays.asList("copilot"));
+                payload.put("assignee", "copilot");
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
@@ -98,8 +98,17 @@ public class GlobalExceptionHandler {
 
                 HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
 
-                // Perform the request (we don't examine the response further)
-                restTemplate.postForEntity(url, request, String.class);
+                // Perform the request and capture/check the response
+                ResponseEntity<String> githubResponse = restTemplate.postForEntity(url, request, String.class);
+                if (githubResponse == null || !githubResponse.getStatusCode().is2xxSuccessful()) {
+                    String respBody = (githubResponse == null) ? "<no response>" : githubResponse.getBody();
+                    int respStatus = (githubResponse == null) ? -1 : githubResponse.getStatusCodeValue();
+                    System.err.println(String.format("Failed to create GitHub issue. Status: %d, Body: %s", respStatus, respBody));
+                } else {
+                    // Success — optionally inspect response body (JSON) to extract issue URL if needed
+                    System.out.println("GitHub issue created successfully. Response status: " + githubResponse.getStatusCodeValue());
+                    // System.out.println("Response body: " + githubResponse.getBody());
+                }
             }
         } catch (Exception issueEx) {
             // Log to stdout as a best-effort (do not throw). In a real app, use a logger.
