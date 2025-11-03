@@ -6,7 +6,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -46,12 +45,10 @@ public class UserController {
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
         User user = users.get(id);
-        if (user != null) {
-            user.setName(updatedUser.getName());
-            user.setEmail(updatedUser.getEmail());
-            return ResponseEntity.ok(user);
-        }
-        return ResponseEntity.notFound().build();
+        user.setName(updatedUser.getName());
+        user.setEmail(updatedUser.getEmail());
+        users.put(id, user);
+        return ResponseEntity.ok(user);
     }
 
     @DeleteMapping("/{id}")
